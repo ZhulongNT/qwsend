@@ -238,7 +238,7 @@ curl 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=693axxx6-7aoc-4bc4-97
 | title | 是 | 标题，不超过128个字节，超过会自动截断 |
 | description | 否 | 描述，不超过512个字节，超过会自动截断 |
 | url | 是 | 点击后跳转的链接。 |
-| picurl | 否 | 图文消息的图片链接，支持JPG、PNG格式，较好的效果为大图 1068*455，小图150*150。 |
+| picurl | 否 | 图文消息的图片链接，支持JPG、PNG格式，较好的效果为大图 1068\*455，小图150\*150。 |
 
 ### 文件上传接口
 
