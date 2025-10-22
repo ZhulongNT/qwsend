@@ -22,13 +22,13 @@
 - 日志：`logging.basicConfig(level=INFO)`；`_ensure_ok` 会记录响应 `text`。
 
 ## 开发与测试工作流（Windows/PowerShell）
-- 开发安装：
   - `pip install -e .[dev]`
-- 运行测试：
-  - Dry（默认，无外网依赖）：`pytest -m "not wet"`
-  - Wet（真实调用）：先设置 `$env:QWSEND_WEBHOOK_KEY='<your_key>'`，再运行 `pytest -m wet` 或直接 `pytest`（测试内部会基于环境变量切换行为）。
-- 常见问题：
-  - 某些 dry 测试会读取 `tests/fixtures/landscape-1920-1080.jpg` 与 `audio.amr`；若缺失 jpg，可添加任意小 JPG 并命名为该文件，或启用 wet 模式绕过此读取。
+## 开发与测试工作流（Windows/PowerShell）
+ - 开发安装：
+   - `pip install -e .[dev]`
+ - 运行测试：
+   - Dry（默认，无外网依赖）：`pytest`
+   - Wet（真实调用）：先设置 `$env:QWSEND_WEBHOOK_KEY='<your_key>'`，再运行 `pytest`。当该环境变量存在时，测试套件会包含 wet（live webhook）测试。
 
 ## 使用示例与模式
 - 同步：
@@ -36,9 +36,14 @@
   - `upload_media(bytes, filename, type_="file"|"voice") -> {"media_id": ...}` 后再 `send_file/send_voice`
 - 异步：接口与同步一致，方法前缀为 `await ...`；资源释放用 `aclose()`。
 - CLI：
-  - 设置 `$env:QWSEND_WEBHOOK_KEY` 或传 `--key`；
-  - 文本：`qwsend "hello"`
-  - Markdown：`qwsend "**bold**" --markdown` 或 `--markdown-v2`
+ - CLI：
+   - 设置 `$env:QWSEND_WEBHOOK_KEY` 或传 `--key`；
+   - 使用子命令选择消息类型（text/markdown/image/news/upload/send-file/send-voice/template-card），例如：
+     - 文本：`qwsend text "hello"`
+     - Markdown：`qwsend markdown "**bold**" --v2`
+     - 上传并发送文件：
+       - 上传：`qwsend upload -f .\\path\\to\\file.pdf --type file`
+       - 发送：`qwsend send-file <media_id>`
 
 ## 变更影响与测试契约
 - 发送 JSON 结构在测试中有精确断言（键名与层级），修改字段请同步更新 `tests/test_client.py`。
