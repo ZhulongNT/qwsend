@@ -15,7 +15,7 @@ import httpx
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from .exceptions import HTTPError
+from .exceptions import HTTPError, RateLimit
 from .version import __version__
 
 DEFAULT_BASE = "https://qyapi.weixin.qq.com/cgi-bin"
@@ -43,7 +43,11 @@ def _ensure_ok(resp: httpx.Response) -> Dict[str, Any]:
     if isinstance(data, Mapping) and data.get("errcode", 0) != 0:
         # ensure payload is a concrete dict for typing
         payload_dict: Dict[str, Any] = dict(data)
-        raise HTTPError(resp.status_code, f"API error: {data.get('errmsg')} ({data.get('errcode')})", payload=payload_dict)
+        errcode = int(data.get("errcode", 0))
+        msg = f"API error: {data.get('errmsg')} ({data.get('errcode')})"
+        if errcode == 45009:
+            raise RateLimit(resp.status_code, msg, payload=payload_dict)
+        raise HTTPError(resp.status_code, msg, payload=payload_dict)
     return data  # type: ignore[return-value]
 
 
