@@ -34,11 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
     news = sub.add_parser("news", help="send news (articles JSON file)")
     news.add_argument("--file", "-f", required=True, help="path to JSON file containing articles list")
 
-    # upload media
-    # NOTE: upload subcommand intentionally disabled; prefer `file`/`voice` which upload then send
-    # up = sub.add_parser("upload", help="upload media file (returns media_id)")
-    # up.add_argument("--file", "-f", required=True, help="path to file to upload")
-    # up.add_argument("--type", dest="type_", choices=("file", "voice"), default="file", help="media type (file or voice)")
+    # upload media (removed) — use `file` or `voice` subcommands which upload then send
 
     # send file by uploading file then sending
     sf = sub.add_parser("file", help="upload a file and send it")
