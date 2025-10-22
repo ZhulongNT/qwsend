@@ -14,6 +14,8 @@ main:
             script:
               - python -m pip install -U pip
               - python -m pip install -e .[dev]
+              - export QWSEND_WEBHOOK_KEY=$WXWORK_MYSELF_WEBHOOK_KEY
+              - qwsend text "hello from TestPyPI build at $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
               - pytest -v
         - name: Build and Upload to TestPyPI
           jobs:
@@ -25,8 +27,3 @@ main:
           - name: Upload to TestPyPI
             script:
               - python -m twine upload --verbose dist/* -u __token__ -p $TESTPYPI_TOKEN --repository testpypi --skip-existing
-          - name: Install from TestPyPI
-            script:
-              - python -m pip install --index-url https://test.pypi.org/simple/ qwsend
-              - export QWSEND_WEBHOOK_KEY=$WXWORK_MYSELF_WEBHOOK_KEY
-              - qwsend "hello from TestPyPI build"
