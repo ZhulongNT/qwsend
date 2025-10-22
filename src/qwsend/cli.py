@@ -23,7 +23,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # markdown
     m = sub.add_parser("markdown", help="send markdown message")
-    m.add_argument("content", help="markdown content")
+    # content can be provided either as a positional or via -f/--file
+    m.add_argument("content", nargs="?", help="markdown content")
+    m.add_argument("--file", "-f", dest="file", help="path to markdown file")
     m.add_argument("--v2", dest="v2", action="store_true", help="use markdown_v2")
 
     # image
@@ -65,7 +67,19 @@ def main(argv: Optional[list[str]] = None) -> int:
             resp = client.send_text(ns.content, mentioned_list=ns.mentioned_list, mentioned_mobile_list=ns.mentioned_mobile_list)
             print(json.dumps(resp, ensure_ascii=False, indent=2))
         elif ns.command == "markdown":
-            resp = client.send_markdown(ns.content, v2=bool(ns.v2))
+            # allow content from positional or from a file
+            md_content = ns.content
+            if getattr(ns, "file", None):
+                try:
+                    with open(ns.file, "r", encoding="utf-8") as fh:
+                        md_content = fh.read()
+                except OSError as e:
+                    parser.error(f"cannot read file: {e}")
+                    return 2
+            if not md_content:
+                parser.error("either markdown content or --file is required")
+                return 2
+            resp = client.send_markdown(md_content, v2=bool(ns.v2))
             print(json.dumps(resp, ensure_ascii=False, indent=2))
         elif ns.command == "image":
             try:

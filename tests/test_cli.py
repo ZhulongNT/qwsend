@@ -103,6 +103,31 @@ def test_send_image_cli():
             pass
 
 
+def test_send_markdown_from_file_cli():
+    # create a temp markdown file
+    p = "tests/.tmp_markdown.md"
+    md = "# Hello\n\nThis is a test markdown file."
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(md)
+    try:
+        if IS_WET:
+            key = os.environ["QWSEND_WEBHOOK_KEY"]
+            rc = run_cli(["--key", key, "markdown", "-f", p])
+            assert rc == 0
+        else:
+            with patch.object(httpx.Client, "post", return_value=DummyResp()) as m:
+                rc = run_cli(["--key", "dummy", "markdown", "-f", p])
+                assert rc == 0
+            _, kwargs = m.call_args
+            assert kwargs["json"]["msgtype"] == "markdown"
+            assert "Hello" in kwargs["json"]["markdown"]["content"]
+    finally:
+        try:
+            os.remove(p)
+        except Exception:
+            pass
+
+
 def test_send_news_cli():
     article = {
         "title": "qwsend - PyPI",
