@@ -1,28 +1,32 @@
-main: 
-  push: 
-    - docker:
-        image: docker.cnb.cool/examples/language/python-3:latest
+main:
+  push:
+    - runner:
+        cpus: 2
+      docker:
+        image: python:3.12
+      imports: 
+        - https://cnb.cool/xzzlwl/pypi-api-token/-/blob/main/env.yaml
+        - https://cnb.cool/xzzlwl/wxwork-push-url/-/blob/main/env.yml
       stages:
-        - name: 打包 & 上传至仓库
-          script:
-            - |
-              export TWINE_USERNAME="cnb"
-              export TWINE_PASSWORD=${CNB_TOKEN}
-              export TWINE_REPOSITORY_URL=${CNB_REPO_URL_HTTPS}
-              python -m build
-              twine upload dist/* --verbose
-        - name: 拉取制品并运行测试
-          script:
-            # 制品库地址
-            # 示例: pip config set global.index-url https://cnb:${CNB_TOKEN}@pypi.cnb.cool/cnb-demo/pypi-demo/-/packages/simple
-            - pip config set global.index-url https://cnb:${CNB_TOKEN}@${CNB_REPO_URL_HTTPS}
-            # 示例: pip install requests
-            - pip install ${CNB_REPO_NAME}
-            # 安装测试依赖并运行 pytest（默认只运行干测）
-            - python -m pip install --upgrade pip
-            - python -m pip install pytest
-            - pytest -m "not wet"
-            # 如果设置了 QWSEND_WEBHOOK_KEY 环境变量，则运行带网测的测试
-            - if [ ! -z "$QWSEND_WEBHOOK_KEY" ]; then pytest -m wet; else echo "Skipping wet tests (QWSEND_WEBHOOK_KEY not set)"; fi
-            
-
+        - name: Dry-run Tests
+          jobs:
+          - name: Run Tests Excluding Wet Tests
+            script:
+              - python -m pip install -U pip
+              - python -m pip install -e .[dev]
+              - pytest -v
+        - name: Build and Upload to TestPyPI
+          jobs:
+          - name: Build Package
+            script:
+              - python -m pip install -U build twine
+              - python -m build
+              - python -m twine check dist/*
+          - name: Upload to TestPyPI
+            script:
+              - python -m twine upload dist/* -u __token__ -p ${TESTPYPI_TOKEN} --repository testpypi
+          - name: Install from TestPyPI
+            script:
+              - python -m pip install --index-url https://test.pypi.org/simple/ qwsend
+              - export QWSEND_WEBHOOK_KEY=${WXWORK_MYSELF_WEBHOOK_KEY}
+              - qwsend "hello from TestPyPI build"
