@@ -27,3 +27,14 @@ main:
           - name: Upload to TestPyPI
             script:
               - python -m twine upload --verbose dist/* -u __token__ -p $TESTPYPI_TOKEN --repository testpypi --skip-existing
+CNB:
+  push:
+    - runner:
+        cpus: 2
+      services:
+        - docker
+      stages:
+        - name: docker build
+          script: docker build -t ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:latest .
+        - name: docker push
+          script: docker push ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:latest
