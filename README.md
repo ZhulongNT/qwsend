@@ -15,6 +15,43 @@ pip install qwsend
 
 ## Quick start
 
+CLI:
+
+The CLI now uses subcommands to select the message type. Set the key either via `--key` or the environment variable `QWSEND_WEBHOOK_KEY`.
+
+Examples (PowerShell):
+
+```powershell
+# preferred: supply key per-invocation (or set the env var once as shown below)
+qwsend --key "<your_key>" text "hello from CLI"
+
+# or set the environment variable for the session:
+$env:QWSEND_WEBHOOK_KEY = "<your_key>"
+
+# text with mentions (repeatable --mention)
+qwsend text "hi everyone" --mention user1 --mention user2
+
+# markdown (use --v2 for markdown_v2)
+qwsend markdown "**bold** and _italic_" --v2
+
+# send image from a local file (use -f / --file)
+qwsend image -f .\path\to\image.jpg
+
+# send news (JSON file containing an articles list)
+qwsend news -f .\path\to\articles.json
+
+# upload then send a file (CLI uploads then sends the file)
+qwsend file -f .\path\to\file.pdf
+
+# upload then send a voice file (CLI uploads then sends the voice)
+qwsend voice -f .\path\to\audio.amr
+
+# send template_card from a JSON file
+qwsend template-card -f .\path\to\template.json
+```
+
+Sync:
+
 ```python
 from qwsend import WebhookClient
 
@@ -36,42 +73,6 @@ async def main():
     await client.aclose()
 
 asyncio.run(main())
-```
-
-CLI:
-
-The CLI now uses subcommands to select the message type. Set the key either via `--key` or the environment variable `QWSEND_WEBHOOK_KEY`.
-
-Examples (PowerShell):
-
-```powershell
-# set env once for the session
-$env:QWSEND_WEBHOOK_KEY = "<your_key>"
-
-# text
-qwsend text "hello from CLI"
-
-# text with mentions (repeatable)
-qwsend text "hi" --mention user1 --mention user2
-
-# markdown (use --v2 for markdown_v2)
-qwsend markdown "**markdown**" --v2
-
-# send image from file
-qwsend image -f .\path\to\image.jpg
-
-# send news from a JSON file containing an articles list
-qwsend news -f .\path\to\articles.json
-
-# upload a file (returns media_id in response)
-qwsend upload -f .\path\to\file.pdf --type file
-
-# send a file or voice by media_id
-qwsend send-file <media_id>
-qwsend send-voice <media_id>
-
-# send template_card from a JSON file
-qwsend template-card -f .\path\to\template.json
 ```
 
 ## User-Agent
