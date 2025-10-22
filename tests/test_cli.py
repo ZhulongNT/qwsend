@@ -105,10 +105,10 @@ def test_send_image_cli():
 
 def test_send_news_cli():
     article = {
-        "title": "qwsend link",
-        "description": "a test article",
-        "url": "https://example.com",
-        "picurl": "https://example.com/logo.png",
+        "title": "qwsend - PyPI",
+        "description": "A lightweight WeCom (WeChat Work) webhook client.",
+        "url": "https://pypi.org/project/qwsend/",
+        "picurl": "https://imageslot.com/v1/1068x455?bg=53c419&fg=ffffff&shadow=23272f&text=qwsend&filetype=png#head.png",
     }
     # write temp json
     import json
