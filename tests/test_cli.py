@@ -210,9 +210,12 @@ def test_template_card_cli():
         "main_title": {"title": "Title", "desc": "Desc"},
         "card_action": {"type": 1, "url": "https://example.com"},
     }
+    with open("tests/.tmp_template.json", "w", encoding="utf-8") as f:
+        import json
+        json.dump(template, f)
     if IS_WET:
         key = os.environ["QWSEND_WEBHOOK_KEY"]
-        rc = run_cli(["--key", key, "template-card", "-f", "tests/.tmp_template.json"])  # we don't write file for wet
+        rc = run_cli(["--key", key, "template-card", "-f", "tests/.tmp_template.json"]) 
         assert rc == 0
     else:
         import json
