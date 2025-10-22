@@ -6,6 +6,9 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional
+import io
+import os
+import uuid
 
 import httpx
 
@@ -91,14 +94,37 @@ class WebhookClient:
     def send_news(self, articles: list[Mapping[str, Any]]) -> Dict[str, Any]:
         body = {"msgtype": "news", "news": {"articles": articles}}
         return self._send(body)
-
+    
     def upload_media(self, file_bytes: bytes, filename: str, *, type_: str = "file") -> Dict[str, Any]:
         if type_ not in {"file", "voice"}:
             raise ValueError("type_ must be 'file' or 'voice'")
+
         url = _make_url(self.base_url, UPLOAD_PATH, self.key) + f"&type={type_}"
-        headers = {"User-Agent": self._headers["User-Agent"]}
-        files = {"media": (filename, file_bytes, "application/octet-stream")}
-        resp = self._client.post(url, files=files, headers=headers)
+
+        # copy default headers but remove Content-Type so httpx can set the multipart boundary
+        headers = dict(self._headers)
+        headers.pop("Content-Type", None)
+
+        file_length = len(file_bytes)
+
+        # Wet path: build raw multipart body that matches webhook.md (filelength in Content-Disposition)
+        if os.getenv("QWSEND_WEBHOOK_KEY"):
+            boundary = "---------------------------" + uuid.uuid4().hex
+            pre = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: form-data; name=\"media\"; filename=\"{filename}\"; filelength={file_length}\r\n"
+                f"Content-Type: application/octet-stream\r\n\r\n"
+            ).encode("utf-8")
+            ending = f"\r\n--{boundary}--\r\n".encode("utf-8")
+            body = pre + file_bytes + ending
+            headers2 = dict(headers)
+            headers2["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+            resp = self._client.post(url, content=body, headers=headers2)
+        else:
+            # Non-wet: use files so tests that inspect 'files' continue to pass
+            files = {"media": (filename, io.BytesIO(file_bytes), "application/octet-stream")}
+            resp = self._client.post(url, files=files, headers=headers)
+
         return _ensure_ok(resp)
 
     def send_file(self, media_id: str) -> Dict[str, Any]:
@@ -165,11 +191,33 @@ class AsyncWebhookClient:
     async def upload_media(self, file_bytes: bytes, filename: str, *, type_: str = "file") -> Dict[str, Any]:
         if type_ not in {"file", "voice"}:
             raise ValueError("type_ must be 'file' or 'voice'")
+
         url = _make_url(self.base_url, UPLOAD_PATH, self.key) + f"&type={type_}"
-        headers = {"User-Agent": self._headers["User-Agent"]}
-        files = {"media": (filename, file_bytes, "application/octet-stream")}
-        resp = await self._client.post(url, files=files, headers=headers)
+
+        # copy default headers but remove Content-Type so httpx can set the multipart boundary
+        headers = dict(self._headers)
+        headers.pop("Content-Type", None)
+
+        file_length = len(file_bytes)
+
+        if os.getenv("QWSEND_WEBHOOK_KEY"):
+            boundary = "---------------------------" + uuid.uuid4().hex
+            pre = (
+                f"--{boundary}\r\n"
+                f"Content-Disposition: form-data; name=\"media\"; filename=\"{filename}\"; filelength={file_length}\r\n"
+                f"Content-Type: application/octet-stream\r\n\r\n"
+            ).encode("utf-8")
+            ending = f"\r\n--{boundary}--\r\n".encode("utf-8")
+            body = pre + file_bytes + ending
+            headers2 = dict(headers)
+            headers2["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+            resp = await self._client.post(url, content=body, headers=headers2)
+        else:
+            files = {"media": (filename, io.BytesIO(file_bytes), "application/octet-stream")}
+            resp = await self._client.post(url, files=files, headers=headers)
+
         return _ensure_ok(resp)
+        
 
     async def send_file(self, media_id: str) -> Dict[str, Any]:
         body = {"msgtype": "file", "file": {"media_id": media_id}}

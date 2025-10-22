@@ -22,13 +22,13 @@ class DummyResp:
 
 IS_WET = bool(os.getenv("QWSEND_WEBHOOK_KEY"))
 
-
-def tiny_png_bytes() -> bytes:
-    # 1x1 transparent PNG
-    b64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMBAFQF3n8AAAAASUVORK5CYII="
-    )
-    return base64.b64decode(b64)
+def fixture_jpg_bytes() -> bytes:
+    with open("./tests/fixtures/landscape-1920-1080.jpg", "rb") as f:
+        return f.read()
+    
+def fixture_amr_bytes() -> bytes:
+    with open("./tests/fixtures/audio.amr", "rb") as f:
+        return f.read()
 
 
 def test_user_agent_contains_name_and_version():
@@ -77,7 +77,7 @@ def test_send_markdown_unified(v2: bool):
 
 
 def test_send_image_unified():
-    img = tiny_png_bytes()
+    img = fixture_jpg_bytes()
     if IS_WET:
         key = os.environ["QWSEND_WEBHOOK_KEY"]
         client = WebhookClient(key)
@@ -165,19 +165,13 @@ def test_send_voice_unified():
     if IS_WET:
         key = os.environ["QWSEND_WEBHOOK_KEY"]
         client = WebhookClient(key)
-        try:
-            # Minimal AMR header; many servers require valid audio frames. Accept xfail if rejected.
-            amr = b"#!AMR\n" + b"\x00" * 20
-            try:
-                up = client.upload_media(amr, "test.amr", type_="voice")
-                media_id = up.get("media_id") or up.get("mediaid")
-                assert media_id
-                data = client.send_voice(media_id)
-                assert data["errmsg"] == "ok"
-            except HTTPError as e:
-                pytest.xfail(f"voice wet path not guaranteed in CI: {e}")
-        finally:
-            client.close()
+        amr = fixture_amr_bytes()
+        up = client.upload_media(amr, "test.amr", type_="voice")
+        media_id = up.get("media_id") or up.get("mediaid")
+        assert media_id
+        data = client.send_voice(media_id)
+        assert data["errmsg"] == "ok"
+        client.close()
     else:
         client = WebhookClient("dummy")
         with patch.object(httpx.Client, "post", return_value=DummyResp()) as m:
