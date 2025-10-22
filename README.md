@@ -50,6 +50,18 @@ qwsend voice -f .\path\to\audio.amr
 qwsend template-card -f .\path\to\template.json
 ```
 
+## markdown from file
+
+You can also provide markdown content from a local file using `-f/--file`.
+If both a positional content and `-f` are provided, the file content takes precedence.
+
+PowerShell example:
+
+```powershell
+# read markdown from file and send
+qwsend markdown -f .\path\to\message.md
+```
+
 Sync:
 
 ```python
