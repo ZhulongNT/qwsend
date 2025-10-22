@@ -10,7 +10,7 @@ main:
               export TWINE_PASSWORD=${CNB_TOKEN}
               export TWINE_REPOSITORY_URL=${CNB_REPO_URL_HTTPS}
               python -m build
-              twine upload dist/*
+              twine upload dist/* --verbose
         - name: 拉取制品并运行测试
           script:
             # 制品库地址
