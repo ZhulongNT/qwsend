@@ -15,7 +15,7 @@ import httpx
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from .exceptions import HTTPError, RateLimit
+from .exceptions import HTTPError, RateLimit, MaxLengthExceeded, ClientMaxLengthExceeded, ClientLengthBelowMinimum
 from .version import __version__
 
 DEFAULT_BASE = "https://qyapi.weixin.qq.com/cgi-bin"
@@ -25,6 +25,33 @@ UPLOAD_PATH = "/webhook/upload_media"
 
 def _build_user_agent() -> str:
     return f"qwsend/{__version__} (+https://pypi.org/project/qwsend/)"
+
+
+# Limits derived from webhook.md (bytes)
+TEXT_MAX = 2048
+MARKDOWN_MAX = 4096
+IMAGE_MAX = 2 * 1024 * 1024
+FILE_MAX = 20 * 1024 * 1024
+VOICE_MAX = 2 * 1024 * 1024
+MIN_UPLOAD_BYTES = 5
+
+
+def _check_bytes_len(name: str, data: bytes, limit: int, *, truncate_warn: bool = False) -> None:
+    """Check byte length of data. If over limit, either warn (if truncate_warn)
+    or raise MaxLengthExceeded.
+
+    name: friendly field name for log/exception messages
+    data: bytes to measure
+    limit: maximum allowed bytes
+    truncate_warn: when True, only log a warning since server will truncate
+    """
+    length = len(data)
+    if length > limit:
+        if truncate_warn:
+            logger.warning("%s length %d bytes exceeds limit %d; server may truncate", name, length, limit)
+        else:
+            # client-side validation error (no HTTP request performed)
+            raise ClientMaxLengthExceeded(f"{name} too long: {length} bytes (limit {limit})")
 
 
 def _make_url(base: str, path: str, key: str) -> str:
@@ -47,6 +74,9 @@ def _ensure_ok(resp: httpx.Response) -> Dict[str, Any]:
         msg = f"API error: {data.get('errmsg')} ({data.get('errcode')})"
         if errcode == 45009:
             raise RateLimit(resp.status_code, msg, payload=payload_dict)
+        if errcode == 40058:
+            # message too long
+            raise MaxLengthExceeded(resp.status_code, msg, payload=payload_dict)
         raise HTTPError(resp.status_code, msg, payload=payload_dict)
     return data  # type: ignore[return-value]
 
@@ -72,6 +102,8 @@ class WebhookClient:
         return _ensure_ok(resp)
 
     def send_text(self, content: str, *, mentioned_list: Optional[list[str]] = None, mentioned_mobile_list: Optional[list[str]] = None) -> Dict[str, Any]:
+        # content limit: 2048 bytes, webhook.md states "超过会自动截断" -> warn only
+        _check_bytes_len("text.content", content.encode("utf-8"), TEXT_MAX, truncate_warn=True)
         body: Dict[str, Any] = {
             "msgtype": "text",
             "text": {"content": content},
@@ -83,6 +115,8 @@ class WebhookClient:
         return self._send(body)
 
     def send_markdown(self, content: str, *, v2: bool = False) -> Dict[str, Any]:
+        # markdown content limit: 4096 bytes -> raise if exceeded
+        _check_bytes_len("markdown.content", content.encode("utf-8"), MARKDOWN_MAX, truncate_warn=False)
         if v2:
             body = {"msgtype": "markdown_v2", "markdown_v2": {"content": content}}
         else:
@@ -90,12 +124,22 @@ class WebhookClient:
         return self._send(body)
 
     def send_image(self, image_bytes: bytes) -> Dict[str, Any]:
+        # image size limit 2MB
+        _check_bytes_len("image", image_bytes, IMAGE_MAX, truncate_warn=False)
         b64 = base64.b64encode(image_bytes).decode("ascii")
         md5 = hashlib.md5(image_bytes).hexdigest()  # nosec - api requirement
         body = {"msgtype": "image", "image": {"base64": b64, "md5": md5}}
         return self._send(body)
 
     def send_news(self, articles: list[Mapping[str, Any]]) -> Dict[str, Any]:
+        # per webhook.md: title max 128 bytes (auto-truncate), description max 512 bytes (auto-truncate)
+        for idx, art in enumerate(articles):
+            title = art.get("title")
+            if isinstance(title, str):
+                _check_bytes_len(f"news.articles[{idx}].title", title.encode("utf-8"), 128, truncate_warn=True)
+            desc = art.get("description")
+            if isinstance(desc, str):
+                _check_bytes_len(f"news.articles[{idx}].description", desc.encode("utf-8"), 512, truncate_warn=True)
         body = {"msgtype": "news", "news": {"articles": articles}}
         return self._send(body)
     
@@ -110,6 +154,16 @@ class WebhookClient:
         headers.pop("Content-Type", None)
 
         file_length = len(file_bytes)
+
+        # enforce upload limits
+        if file_length < MIN_UPLOAD_BYTES:
+            # client-side small upload error
+            raise ClientLengthBelowMinimum(f"uploaded file too small: {file_length} bytes (min {MIN_UPLOAD_BYTES})")
+        if type_ == "file":
+            _check_bytes_len("upload.file", file_bytes, FILE_MAX, truncate_warn=False)
+        else:
+            # voice
+            _check_bytes_len("upload.voice", file_bytes, VOICE_MAX, truncate_warn=False)
 
         # Wet path: build raw multipart body that matches webhook.md (filelength in Content-Disposition)
         if os.getenv("QWSEND_WEBHOOK_KEY"):

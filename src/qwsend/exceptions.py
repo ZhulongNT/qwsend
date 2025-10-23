@@ -24,3 +24,28 @@ class RateLimit(HTTPError):
 
     def __init__(self, status_code: int, message: str | None = None, *, payload: dict | None = None):
         super().__init__(status_code, message, payload=payload)
+
+
+class MaxLengthExceeded(HTTPError):
+    """Raised when the API reports that a message exceeded maximum allowed length (errcode 40058)."""
+
+    def __init__(self, status_code: int, message: str | None = None, *, payload: dict | None = None):
+        super().__init__(status_code, message, payload=payload)
+
+
+class ClientValidationError(QWSendError):
+    """Base class for client-side validation errors raised before making HTTP requests."""
+
+
+class ClientMaxLengthExceeded(ClientValidationError):
+    """Raised when client-side validation detects data exceeding allowed length."""
+
+    def __init__(self, message: str | None = None):
+        super().__init__(message)
+
+
+class ClientLengthBelowMinimum(ClientValidationError):
+    """Raised when client-side validation detects uploaded data smaller than allowed minimum."""
+
+    def __init__(self, message: str | None = None):
+        super().__init__(message)

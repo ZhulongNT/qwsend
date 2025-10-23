@@ -118,7 +118,7 @@ def test_send_news_unified():
             client.send_news([article])
         _, kwargs = m.call_args
         assert kwargs["json"]["msgtype"] == "news"
-        assert kwargs["json"]["news"]["articles"][0]["title"] == "qwsend link"
+        assert kwargs["json"]["news"]["articles"][0]["title"] == "qwsend - PyPI"
 
 
 def test_upload_and_send_file_unified():

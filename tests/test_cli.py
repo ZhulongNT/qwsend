@@ -151,7 +151,7 @@ def test_send_news_cli():
                 assert rc == 0
             _, kwargs = m.call_args
             assert kwargs["json"]["msgtype"] == "news"
-            assert kwargs["json"]["news"]["articles"][0]["title"] == "qwsend link"
+            assert kwargs["json"]["news"]["articles"][0]["title"] == "qwsend - PyPI"
     finally:
         try:
             os.remove(p)
